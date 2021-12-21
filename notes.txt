@@ -1,0 +1,1 @@
+migrate -source file://D:/Go/greenlight/migrations -database $GREENLIGHT_DB_DSN up
