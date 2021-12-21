@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/bal3000/greenlight/internal/validator"
+	"github.com/lib/pq"
 )
 
 type Movie struct {
@@ -47,7 +48,15 @@ type MovieModeler interface {
 }
 
 func (m MovieModel) Insert(movie *Movie) error {
-	return nil
+	query := `
+		INSERT INTO movies (title, year, runtime, genres)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, createdAt, version`
+
+	args := []interface{}{movie.Title, movie.Year, movie.Runtime, pq.Array(movie.Genres)}
+
+	// TODO: don't mutate the og movie, create and pass out the new movie obj
+	return m.DB.QueryRow(query, args...).Scan(&movie.ID, &movie.CreatedAt, &movie.Version)
 }
 
 func (m MovieModel) Get(id int64) (*Movie, error) {
