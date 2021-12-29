@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/bal3000/greenlight/internal/data"
 	"github.com/bal3000/greenlight/internal/validator"
@@ -98,6 +99,16 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 			app.serverErrorResponse(w, r, err)
 		}
 		return
+	}
+
+	// If the request contains a X-Expected-Version header, verify that the movie
+	// version in the database matches the expected version specified in the header
+	versionHeader := r.Header.Get("X-Expected-Version")
+	if versionHeader != "" {
+		if strconv.FormatInt(int64(movie.Version), 32) != versionHeader {
+			app.editConflictResponse(w, r)
+			return
+		}
 	}
 
 	var input struct {
