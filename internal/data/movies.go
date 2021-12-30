@@ -44,6 +44,7 @@ type MovieModel struct {
 
 type MovieModeler interface {
 	Insert(movie *Movie) error
+	GetAll(title string, genres []string, filters Filters) ([]*Movie, error)
 	Get(id int64) (*Movie, error)
 	Update(movie *Movie) error
 	Delete(id int64) error
@@ -62,6 +63,50 @@ func (m MovieModel) Insert(movie *Movie) error {
 
 	// TODO: don't mutate the og movie, create and pass out the new movie obj
 	return m.DB.QueryRowContext(ctx, query, args...).Scan(&movie.ID, &movie.CreatedAt, &movie.Version)
+}
+
+func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*Movie, error) {
+	query := `
+		SELECT id, createdAt, title, year, runtime, genres, version
+		FROM movies
+		ORDER BY id`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := m.DB.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	movies := []*Movie{}
+	for rows.Next() {
+		var movie Movie
+
+		err := rows.Scan(
+			&movie.ID,
+			&movie.CreatedAt,
+			&movie.Title,
+			&movie.Year,
+			&movie.Runtime,
+			pq.Array(&movie.Genres),
+			&movie.Version,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		movies = append(movies, &movie)
+	}
+
+	// When the rows.Next() loop has finished, call rows.Err() to retrieve any error
+	// that was encountered during the iteration.
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return movies, nil
 }
 
 func (m MovieModel) Get(id int64) (*Movie, error) {
